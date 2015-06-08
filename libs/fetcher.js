@@ -81,6 +81,16 @@ function parseParamValues (params) {
     };
 
     /**
+     * @method hasFetcher
+     * @memberof Fetcher
+     * @param {String} name
+     * @returns {Boolean} true if fetcher with name was registered
+     */
+    Fetcher.hasFetcher = function (name) {
+        return name && Fetcher.fetchers[name];
+    };
+
+    /**
      * @method middleware
      * @memberof Fetcher
      * @returns {Function} middleware
@@ -94,9 +104,16 @@ function parseParamValues (params) {
 
             if (req.method === GET) {
                 var path = req.path.substr(1).split(';');
+                var resource = path.shift();
+
+                if (!Fetcher.hasFetcher(resource)) {
+                    res.status(400).json({message: 'Invalid Fetchr URL'});
+                    return;
+                }
+
                 request = {
                     req: req,
-                    resource: path.shift(),
+                    resource: resource,
                     operation: OP_READ,
                     params: parseParamValues(qs.parse(path.join('&'))),
                     config: {},
