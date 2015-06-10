@@ -35,39 +35,6 @@ describe('Server Fetcher', function () {
 
     describe('#middleware', function () {
         describe('#POST', function() {
-            it('should 404 to POST request with no req.body.requests object', function (done) {
-                var operation = 'create',
-                    statusCodeSet = false,
-                    req = {
-                        method: 'POST',
-                        path: '/' + mockService.name,
-                        body: {
-                            requests: {},
-                            context: {
-                                site: '',
-                                device: ''
-                            }
-                        }
-                    },
-                    res = {
-                        status: function (code) {
-                            expect(code).to.equal(400);
-                            statusCodeSet = true;
-                            return this;
-                        },
-                        end: function () {
-                            expect(statusCodeSet).to.be.true;
-                            done();
-                        }
-                    },
-                    next = function () {
-                        console.log('Not Expected: middleware skipped request');
-                    },
-                    middleware = Fetcher.middleware();
-
-                middleware(req, res, next);
-            });
-
             it('should respond to POST api request', function (done) {
                 var operation = 'create',
                     statusCodeSet = false,
@@ -376,34 +343,32 @@ describe('Server Fetcher', function () {
         });
 
         describe('Invalid Access', function () {
-            function makeGetInvalidReqTest(req, done) {
-                var statusCodeSet = false;
-                var res = {
-                    status: function (code) {
-                        expect(code).to.equal(400);
-                        statusCodeSet = true;
-                        return this;
-                    },
-                    json: function (err) {
-                        expect(err).to.exist;
-                        expect(err).to.be.an.object;
-                        expect(err.message).to.equal('Invalid Fetchr URL');
-                        expect(statusCodeSet).to.be.true;
-                        done();
-                    }
-                };
-                var next = function () {
-                    done(new Error('Not Expected: middleware skipped request'));
+            function makeInvalidReqTest(req, done) {
+                var res = {};
+                var next = function (err) {
+                    expect(err).to.exist;
+                    expect(err).to.be.an.object;
+                    expect(err.message).to.equal('Invalid Fetchr Access');
+                    expect(err.statusCode).to.equal(400);
+                    expect(err.source).to.equal('fetchr');
+                    done();
                 };
                 var middleware = Fetcher.middleware();
                 middleware(req, res, next);
             }
-            it('should reject empty url', function (done) {
-                makeGetInvalidReqTest({method: 'GET', path: '/'}, done);
+            it('should skip empty url', function (done) {
+                makeInvalidReqTest({method: 'GET', path: '/'}, done);
             });
-            it('should reject invalid resource', function (done) {
-                makeGetInvalidReqTest({method: 'GET', path: '/invalidService'}, done);
+            it('should skip invalid resource', function (done) {
+                makeInvalidReqTest({method: 'GET', path: '/invalidService'}, done);
             });
+            it('should skip POST request with empty req.body.requests object', function (done) {
+                makeInvalidReqTest({method: 'POST', body: { requests: {}}}, done);
+            });
+            it('should skip POST request with no req.body.requests object', function (done) {
+                makeInvalidReqTest({method: 'POST'}, done);
+            });
+
         });
     });
 

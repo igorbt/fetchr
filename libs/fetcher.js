@@ -12,6 +12,7 @@ var OP_UPDATE = 'update';
 var GET = 'GET';
 var qs = require('querystring');
 var debug = require('debug')('Fetchr');
+var fumble = require('fumble');
 
 function parseValue(value) {
     // take care of value of type: array, object
@@ -101,14 +102,18 @@ function parseParamValues (params) {
     Fetcher.middleware = function () {
         return function (req, res, next) {
             var request;
+            var error;
 
             if (req.method === GET) {
                 var path = req.path.substr(1).split(';');
                 var resource = path.shift();
 
                 if (!Fetcher.hasFetcher(resource)) {
-                    res.status(400).json({message: 'Invalid Fetchr URL'});
-                    return;
+                    error = fumble.http.badRequest('Invalid Fetchr Access', {
+                        debug: 'Bad resource ' + resource
+                    });
+                    error.source = 'fetchr';
+                    return next(error);
                 }
 
                 request = {
@@ -132,15 +137,27 @@ function parseParamValues (params) {
                     }
                 };
             } else {
-                var requests = req.body.requests;
+                var requests = req.body && req.body.requests;
 
                 if (!requests || Object.keys(requests).length === 0) {
-                    res.status(400).end();
-                    return;
+                    error = fumble.http.badRequest('Invalid Fetchr Access', {
+                        debug: 'No resources'
+                    });
+                    error.source = 'fetchr';
+                    return next(error);
                 }
 
-                var DEFAULT_GUID = 'g0',
-                    singleRequest = requests[DEFAULT_GUID];
+                var DEFAULT_GUID = 'g0';
+                var singleRequest = requests[DEFAULT_GUID];
+
+                if (!Fetcher.hasFetcher(singleRequest.resource)) {
+                    error = fumble.http.badRequest('Invalid Fetchr Access', {
+                        debug: 'Bad resource ' + singleRequest.resource
+                    });
+                    error.source = 'fetchr';
+                    return next(error);
+                }
+
                 request = {
                     req: req,
                     resource: singleRequest.resource,
